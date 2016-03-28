@@ -1,13 +1,17 @@
 package com.serenegiant.veinFinder;
 
+import android.graphics.Bitmap;
+
+import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
-import static java.lang.System.out;
+//import org.opencv.highgui.Highgui;
 
-import java.util.Arrays;
+//import org.opencv.imgcodecs; // imread, imwrite, etc
+import org.opencv.imgcodecs.Imgcodecs;
+//import org.opencv.videoio;   // VideoCapture
 
 
 @SuppressWarnings("unused")
@@ -16,13 +20,16 @@ public class mainClassUpdated
 	static final double ISDEGCHOSENFLAG = 10;
 	static final int TRESHOLD = 1;
 
-	public static void processImage() //TODO need to add arguments
+	public static Bitmap processImage(Bitmap origBit) //TODO need to add arguments
 	{
-		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-		String imgtest = "javetest_2_10_10.jpg";
-		Mat orig_img = Imgcodecs.imread(imgtest,0);
+//		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+//		FIXME DO NOT LOAD DIRECTLY THIS LIB = System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+//		String imgtest = "javetest_2_10_10.jpg";
+		Mat orig_img = new Mat (origBit.getWidth(), origBit.getHeight(), CvType.CV_8UC1);// = Imgcodecs.imread(imgtest,0);
+		Utils.bitmapToMat(origBit, orig_img);
 		Mat img = MyCLAHE.apply(orig_img); //need to be improved
-		boolean bool = Imgcodecs.imwrite("img_grey_java.jpg", img);
+//		boolean bool = Imgcodecs.imwrite("img_grey_java.jpg", img);
+		/*
 		Size size = img.size();
 		Mat veinMat = new Mat(size, CvType.CV_8UC1); // u or s 
 		Mat directMat = new Mat(size, CvType.CV_8UC1);
@@ -34,13 +41,14 @@ public class mainClassUpdated
 			for (int col = 0; col<size.width; col++)
 			{
 				tempAndColor = checkPixelIsVein(img, row, col, numOfDirection, d);
-				
+	*/
 				/*if (!(temp == ISDEGCHOSENFLAG))
 				{
 					veinMat.put(row, col, color);
 					directMat.put(row, col, (byte) temp);
 				
 				}*/
+		/*
 				veinMat.put(row, col, tempAndColor[1]);
 				directMat.put(row, col, tempAndColor[0]);
 				if (tempAndColor[1] != 0)
@@ -50,8 +58,17 @@ public class mainClassUpdated
 				}
 			}
 		}
-		boolean bool1 = Imgcodecs.imwrite("KING1.jpg", veinMat);
+		*/
 
+		Bitmap outBit = Bitmap.createBitmap(img.cols(), img.rows(), Bitmap.Config.ARGB_8888);
+		Utils.matToBitmap(img, outBit);
+		return outBit;
+
+		/*
+		Bitmap outBit = Bitmap.createBitmap(veinMat.cols(), veinMat.rows(), Bitmap.Config.ARGB_8888);
+		Utils.matToBitmap(veinMat, outBit);
+		return outBit;
+		*/
 	}
 
 	public static double[] getMinMax(Mat mat)
@@ -84,7 +101,7 @@ public class mainClassUpdated
 		//System.out.println(profile.dump());
 		//System.out.println(profile.submat(0, C, 0, 1).dump());
 		//System.out.println(profile.submat(C, (int) profile.size().height, 0,1).dump());
-		
+
 		double[] L = getMinMax(profile.submat(0, C, 0, 1));
 		double L_max = L[0];
 		double L_min = L[1];

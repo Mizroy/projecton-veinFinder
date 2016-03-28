@@ -8,10 +8,6 @@ import org.opencv.core.Core;
 import org.opencv.imgcodecs.Imgcodecs;
 import static java.lang.System.out;
 
-
-
-
-
 public class MyCLAHE 
 {
 	public static Mat apply(Mat img)

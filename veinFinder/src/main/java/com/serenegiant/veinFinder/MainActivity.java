@@ -23,18 +23,13 @@ package com.serenegiant.veinFinder;
  * Files in the jni/libjpeg, jni/libusb, jin/libuvc, jni/rapidjson folder may have a different license, see the respective files.
 */
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.lang.reflect.Field;
-
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
+import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.hardware.usb.UsbDevice;
 import android.media.AudioManager;
@@ -52,6 +47,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -60,13 +56,33 @@ import com.serenegiant.encoder.MediaEncoder;
 import com.serenegiant.encoder.MediaMuxerWrapper;
 import com.serenegiant.encoder.MediaSurfaceEncoder;
 import com.serenegiant.encoder.MediaVideoEncoder;
-
 import com.serenegiant.usb.CameraDialog;
+import com.serenegiant.usb.IFrameCallback;
 import com.serenegiant.usb.USBMonitor;
 import com.serenegiant.usb.USBMonitor.OnDeviceConnectListener;
 import com.serenegiant.usb.USBMonitor.UsbControlBlock;
 import com.serenegiant.usb.UVCCamera;
 import com.serenegiant.widget.CameraViewInterface;
+
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+
+//import il.co.ravtech.veinfinder.R;
 
 public final class MainActivity extends Activity implements CameraDialog.CameraDialogParent {
 	private static final boolean DEBUG = true;	// TODO set false on release
@@ -121,6 +137,35 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 	 */
 	private ImageButton mCaptureButton;
 
+	public PreviewHandler myPreviewHandler;
+
+	private static class PreviewHandler extends Handler {
+
+		private final WeakReference<MainActivity> currentActivity;
+
+		public PreviewHandler(MainActivity activity){
+			currentActivity = new WeakReference<MainActivity>(activity);
+		}
+
+		@Override
+		public void handleMessage(Message message){
+			MainActivity activity = currentActivity.get();
+			new AlertDialog.Builder(currentActivity.get())
+					.setTitle("Handle Message")
+					.setMessage("1")
+					.setCancelable(false)
+					.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.cancel();
+						}
+					}).create().show();
+			if (activity!= null){
+				activity.ProcessImage(message.getData().getByteArray("frame"));
+			}
+		}
+	}
+
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -141,11 +186,129 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 
 		mUSBMonitor = new USBMonitor(this, mOnDeviceConnectListener);
 		mHandler = CameraHandler.createHandler(this, mUVCCameraView);
+
+		// ***** MY CODE ***
+		myPreviewHandler = new PreviewHandler(this);
 	}
+
+	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+		@Override
+		public void onManagerConnected(int status) {
+			switch (status) {
+				case LoaderCallbackInterface.SUCCESS:
+				{
+					Log.i(TAG, "OpenCV loaded successfully");
+
+				} break;
+				default:
+				{
+					super.onManagerConnected(status);
+				} break;
+			}
+		}
+	};
+
+	public void ProcessImage(final byte[] frame)
+	{
+		try
+		{
+
+			// TODO do here what you want  with  OPENCV
+			//MyGlobal.OutputImage = mainClassUpdated.processImage(MyGlobal.MyBitmapImage);
+
+
+			Mat orig_img = new Mat (MyGlobal.MyBitmapImage.getHeight(), MyGlobal.MyBitmapImage.getWidth() , CvType.CV_8UC1);// = Imgcodecs.imread(imgtest,0);
+			//Utils.bitmapToMat(MyGlobal.MyBitmapImage, orig_img);
+			orig_img.put(0,0,frame);
+			Mat inverted = new Mat(orig_img.rows(), orig_img.cols(), orig_img.type(), new Scalar(255,255,255));
+			Core.absdiff(inverted, orig_img, inverted);
+			Bitmap.Config conf = Bitmap.Config.ARGB_8888;
+			MyGlobal.OutputImage = Bitmap.createBitmap(orig_img.cols(),orig_img.rows(),conf);
+			Utils.matToBitmap(inverted, MyGlobal.OutputImage);
+
+			/*new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Process Image")
+					.setMessage("1")
+					.setCancelable(false)
+					.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.cancel();
+						}
+					}).create().show();*/
+
+			/// ****** TODO my code ******
+			//final File outputFile = MediaMuxerWrapper.getCaptureFile(Environment.DIRECTORY_DCIM, "clahe.png");
+			/*new AlertDialog.Builder(MainActivity.this)
+					.setTitle("File Output")
+					.setMessage(outputFile.getAbsolutePath())
+					.setCancelable(false)
+					.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.cancel();
+						}
+					}).create().show();*/
+
+			//***************** TODO THIS IS WHERE I CHANGED THE CODE ************************//
+
+			ImageView imageView = (ImageView) findViewById(R.id.image_view2);
+			if (MyGlobal.firstFrame) {
+				// create Image view
+				com.serenegiant.widget.UVCCameraTextureView cameraView = (com.serenegiant.widget.UVCCameraTextureView) findViewById(R.id.camera_view);
+				// "Swap" views
+				cameraView.setVisibility(View.GONE);
+				imageView.setVisibility(View.VISIBLE);
+			}
+					// Show image
+					//File imgFile = new File(Environment.getExternalStorageDirectory().getPath() + "/DCIM/USBCameraTest/test.png");
+					//File imgFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + "/USBCameraTest/test.png");
+
+					//Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+
+			//****** Show Image
+					imageView.setImageBitmap(MyGlobal.OutputImage);
+
+/*
+			BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(outputFile));
+
+			MyGlobal.OutputImage.compress(CompressFormat.PNG, 100, os);
+			os.flush();
+
+			//mHandler.sendMessage(mHandler.obtainMessage(MSG_MEDIA_UPDATE, outputFile.getPath()));
+
+			//MyGlobal.latch.countDown();
+
+			os.close();*/
+
+		}
+		catch(Exception e){
+			new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Exception")
+					.setMessage(e.getMessage())
+					.setCancelable(false)
+					.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.cancel();
+						}
+					}).create().show();
+			Log.e("Exception -", e.getMessage());
+		}
+		finally {
+			MyGlobal.isTrue = true;
+		}
+	}
+
 
 	@Override
 	public void onResume() {
 		super.onResume();
+		if(!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback))
+		{
+			Log.e("TEST", "Cannot connect to OpenCV Manager");
+		}
+
 		if (DEBUG) Log.v(TAG, "onResume:");
 		mUSBMonitor.register();
 		if (mUVCCameraView != null)
@@ -191,6 +354,11 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 		public void onClick(final View view) {
 			switch (view.getId()) {
 			case R.id.camera_button:
+				/// ************ MY CODE ****************
+				File imgFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + "/USBCameraTest/test.png");
+				MyGlobal.MyBitmapImage = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+				//ProcessImage();
+
 				if (!mHandler.isCameraOpened()) {
 					CameraDialog.showDialog(MainActivity.this);
 				} else {
@@ -199,6 +367,7 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 				}
 				break;
 			case R.id.capture_button:
+
 				if (mHandler.isCameraOpened()) {
 					if (!mHandler.isRecording()) {
 						mCaptureButton.setColorFilter(0xffff0000);	// turn red
@@ -285,6 +454,14 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 	@Override
 	public USBMonitor getUSBMonitor() {
 		return mUSBMonitor;
+	}
+
+	private static class MyGlobal
+	{
+		public static boolean isTrue;
+		public static Bitmap MyBitmapImage;
+		public static Bitmap OutputImage;
+		public static boolean firstFrame = true;
 	}
 
 	/**
@@ -493,7 +670,17 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					}
 				}
 				if (mUVCCamera != null) {
-//					mUVCCamera.setFrameCallback(mIFrameCallback, UVCCamera.PIXEL_FORMAT_YUV);
+					mUVCCamera.setFrameCallback(mIFrameCallback, UVCCamera.PIXEL_FORMAT_YUV);
+					new AlertDialog.Builder(mWeakParent.get()) //TODO kill all alerts
+							.setTitle("set frame")
+							.setMessage("set frame")
+							.setCancelable(false)
+							.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									dialog.cancel();
+								}
+							}).create().show();
 					mUVCCamera.setPreviewDisplay(surface);
 					mUVCCamera.startPreview();
 				}
@@ -515,11 +702,12 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 				if (parent == null) return;
 				mSoundPool.play(mSoundId, 0.2f, 0.2f, 0, 0, 1.0f);	// play shutter sound
 				final Bitmap bitmap = mWeakCameraView.get().captureStillImage();
+				MyGlobal.MyBitmapImage = bitmap;
 				try {
 					// get buffered output stream for saving a captured still image as a file on external storage.
 					// the file name is came from current time.
 					// You should use extension name as same as CompressFormat when calling Bitmap#compress.
-					final File outputFile = MediaMuxerWrapper.getCaptureFile(Environment.DIRECTORY_DCIM, ".png");
+					final File outputFile = MediaMuxerWrapper.getCaptureFile(Environment.DIRECTORY_DCIM, "test.png");
 					final BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(outputFile));
 					try {
 						try {
@@ -554,6 +742,16 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					}
 					mMuxer.prepare();
 					mMuxer.startRecording();
+					new AlertDialog.Builder(mWeakParent.get())
+							.setTitle("start recording")
+							.setMessage("start recording")
+							.setCancelable(false)
+							.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									dialog.cancel();
+								}
+							}).create().show();
 				} catch (final IOException e) {
 					Log.e(TAG, "startCapture:", e);
 				}
@@ -595,12 +793,34 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					Looper.myLooper().quit();
 			}
 
-/*			// if you need frame data as ByteBuffer on Java side, you can use this callback method with UVCCamera#setFrameCallback
+			// if you need frame data as ByteBuffer on Java side, you can use this callback method with UVCCamera#setFrameCallback
 			private final IFrameCallback mIFrameCallback = new IFrameCallback() {
 				@Override
-				public void onFrame(final ByteBuffer frame) {
+				public void onFrame(final ByteBuffer frame)
+				{
+					new AlertDialog.Builder(mWeakParent.get())
+							.setTitle("onFrame")
+							.setMessage("onFrame")
+							.setCancelable(false)
+							.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									dialog.cancel();
+								}
+							}).create().show();
+					if (MyGlobal.firstFrame)
+					{
+					//mUVCCamera.startCapture(surface); //TODO Stopped Here
+						// Need to understand which surface to put here.
+						// if startCapture will work, should run the onFrame;
+					}
+					Bundle msgBundle = new Bundle();
+					msgBundle.putByteArray("frame", frame.array());
+					Message msg = new Message();
+					msg.setData(msgBundle);
+					mWeakParent.get().myPreviewHandler.sendMessage(msg);
 				}
-			}; */
+			};
 
 			private final MediaEncoder.MediaEncoderListener mMediaEncoderListener = new MediaEncoder.MediaEncoderListener() {
 				@Override
@@ -616,7 +836,17 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					if (encoder instanceof MediaSurfaceEncoder)
 					try {
 						mWeakCameraView.get().setVideoEncoder(encoder);
-						mUVCCamera.startCapture(((MediaSurfaceEncoder)encoder).getInputSurface());
+						mUVCCamera.startCapture(((MediaSurfaceEncoder) encoder).getInputSurface());
+						new AlertDialog.Builder(mWeakParent.get())
+								.setTitle("WeCapture")
+								.setMessage("We Capture")
+								.setCancelable(false)
+								.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+									@Override
+									public void onClick(DialogInterface dialog, int which) {
+										dialog.cancel();
+									}
+								}).create().show();
 					} catch (final Exception e) {
 						Log.e(TAG, "onPrepared:", e);
 					}

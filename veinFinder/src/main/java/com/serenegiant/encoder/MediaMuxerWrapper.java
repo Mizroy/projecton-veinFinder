@@ -30,12 +30,16 @@ import java.text.SimpleDateFormat;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.serenegiant.veinFinder.MainActivity;
 
 public class MediaMuxerWrapper {
 	private static final boolean DEBUG = true;	// TODO set false on release
@@ -180,15 +184,16 @@ public class MediaMuxerWrapper {
     /**
      * generate output file
      * @param type Environment.DIRECTORY_MOVIES / Environment.DIRECTORY_DCIM etc.
-     * @param ext .mp4(.m4a for audio) or .png
+     * @param name .mp4(.m4a for audio) or .png
      * @return return null when this app has no writing permission to external storage.
      */
-    public static final File getCaptureFile(final String type, final String ext) {
+    public static final File getCaptureFile(final String type, final String name) {
 		final File dir = new File(Environment.getExternalStoragePublicDirectory(type), DIR_NAME);
 		Log.d(TAG, "path=" + dir.toString());
 		dir.mkdirs();
         if (dir.canWrite()) {
-        	return new File(dir, getDateTimeString() + ext);
+        	//return new File(dir, getDateTimeString() + ext);
+			return new File(dir, name);
         }
     	return null;
     }

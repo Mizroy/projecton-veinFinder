@@ -69,4 +69,10 @@
         android:scaleType="centerCrop"
         android:src="@android:drawable/ic_menu_camera" />
 
+
+    <ImageView android:id="@+id/image_view2"
+        android:visibility="gone"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
+
 </RelativeLayout>
