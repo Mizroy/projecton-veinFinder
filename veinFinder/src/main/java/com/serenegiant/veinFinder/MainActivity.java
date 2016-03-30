@@ -72,6 +72,8 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
+import org.opencv.imgproc.CLAHE;
+import org.opencv.imgproc.Imgproc;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -137,8 +139,9 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 	 */
 	private ImageButton mCaptureButton;
 
-	public PreviewHandler myPreviewHandler;
+	//public PreviewHandler myPreviewHandler;
 
+	/*
 	private static class PreviewHandler extends Handler {
 
 		private final WeakReference<MainActivity> currentActivity;
@@ -164,7 +167,54 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 				activity.ProcessImage(message.getData().getByteArray("frame"));
 			}
 		}
-	}
+	}*/
+
+	//runs without a timer by reposting this handler at the end of the runnable
+	Handler timerHandler = new Handler();
+	Runnable timerRunnable = new Runnable() {
+
+		@Override
+		public void run() {
+
+			/*try {
+				synchronized (MyGlobal.MyBitmapImage) {
+					MyGlobal.MyBitmapImage.wait();
+				}
+			}catch (Exception e){}*/
+
+			if (MyGlobal.isPhotoSaved) {
+				ProcessImage();
+				MyGlobal.isPhotoSaved = false;
+				/*new AlertDialog.Builder(MainActivity.this)
+						.setTitle("Process Image")
+						.setMessage(Boolean.toString(MyGlobal.isPhotoSaved))
+						.setCancelable(false)
+						.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.cancel();
+							}
+						}).create().show();*/
+			} else {
+				/*new AlertDialog.Builder(MainActivity.this)
+						.setTitle("Process Image")
+						.setMessage("Image Not Saved")
+						.setCancelable(false)
+						.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.cancel();
+							}
+						}).create().show();*/
+				if (MyGlobal.isJustCaptured == false) {
+					mHandler.captureStill();
+					MyGlobal.isJustCaptured = true;
+				}
+			}
+
+			timerHandler.postDelayed(this, 1);
+		}
+	};
 
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
@@ -188,7 +238,7 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 		mHandler = CameraHandler.createHandler(this, mUVCCameraView);
 
 		// ***** MY CODE ***
-		myPreviewHandler = new PreviewHandler(this);
+		//myPreviewHandler = new PreviewHandler(this);
 	}
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -208,7 +258,7 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 		}
 	};
 
-	public void ProcessImage(final byte[] frame)
+	public void ProcessImage()
 	{
 		try
 		{
@@ -218,13 +268,19 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 
 
 			Mat orig_img = new Mat (MyGlobal.MyBitmapImage.getHeight(), MyGlobal.MyBitmapImage.getWidth() , CvType.CV_8UC1);// = Imgcodecs.imread(imgtest,0);
-			//Utils.bitmapToMat(MyGlobal.MyBitmapImage, orig_img);
-			orig_img.put(0,0,frame);
+			Utils.bitmapToMat(MyGlobal.MyBitmapImage, orig_img);
+			//orig_img.put(0,0,frame);
+
+			Mat proc_img = new Mat(orig_img.rows(), orig_img.cols(), orig_img.type(), new Scalar(255,255,255));
+
+			Imgproc.Canny(orig_img, proc_img, 700, 600, 5, true);
+			/*
 			Mat inverted = new Mat(orig_img.rows(), orig_img.cols(), orig_img.type(), new Scalar(255,255,255));
 			Core.absdiff(inverted, orig_img, inverted);
+			*/
 			Bitmap.Config conf = Bitmap.Config.ARGB_8888;
-			MyGlobal.OutputImage = Bitmap.createBitmap(orig_img.cols(),orig_img.rows(),conf);
-			Utils.matToBitmap(inverted, MyGlobal.OutputImage);
+			Bitmap output = Bitmap.createBitmap(orig_img.cols(),orig_img.rows(),conf);
+			Utils.matToBitmap(proc_img, output);
 
 			/*new AlertDialog.Builder(MainActivity.this)
 					.setTitle("Process Image")
@@ -252,14 +308,15 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 
 			//***************** TODO THIS IS WHERE I CHANGED THE CODE ************************//
 
-			ImageView imageView = (ImageView) findViewById(R.id.image_view2);
-			if (MyGlobal.firstFrame) {
+			/*if (MyGlobal.firstFrame) {
 				// create Image view
-				com.serenegiant.widget.UVCCameraTextureView cameraView = (com.serenegiant.widget.UVCCameraTextureView) findViewById(R.id.camera_view);
+				//com.serenegiant.widget.UVCCameraTextureView cameraView = (com.serenegiant.widget.UVCCameraTextureView) findViewById(R.id.camera_view);
 				// "Swap" views
-				cameraView.setVisibility(View.GONE);
+				//cameraView.setVisibility(View.GONE);
+				ImageView imageView = (ImageView) findViewById(R.id.image_view2);
 				imageView.setVisibility(View.VISIBLE);
-			}
+				MyGlobal.firstFrame = false;
+			}*/
 					// Show image
 					//File imgFile = new File(Environment.getExternalStorageDirectory().getPath() + "/DCIM/USBCameraTest/test.png");
 					//File imgFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + "/USBCameraTest/test.png");
@@ -267,7 +324,8 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					//Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 
 			//****** Show Image
-					imageView.setImageBitmap(MyGlobal.OutputImage);
+			ImageView imageView = (ImageView) findViewById(R.id.image_view2);
+			imageView.setImageBitmap(output);
 
 /*
 			BufferedOutputStream os = new BufferedOutputStream(new FileOutputStream(outputFile));
@@ -355,10 +413,10 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 			switch (view.getId()) {
 			case R.id.camera_button:
 				/// ************ MY CODE ****************
-				File imgFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + "/USBCameraTest/test.png");
+				/*File imgFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + "/USBCameraTest/test.png");
 				MyGlobal.MyBitmapImage = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 				//ProcessImage();
-
+				*/
 				if (!mHandler.isCameraOpened()) {
 					CameraDialog.showDialog(MainActivity.this);
 				} else {
@@ -390,12 +448,17 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 		public boolean onLongClick(final View view) {
 			switch (view.getId()) {
 			case R.id.camera_view:
+				ImageView imageView = (ImageView) findViewById(R.id.image_view2);
+				imageView.setVisibility(View.VISIBLE);
+				MyGlobal.firstFrame = false;
+				timerHandler.postDelayed(timerRunnable, 0);
+				/*code for capturing single image
 				if (mHandler.isCameraOpened()) {
 					mHandler.captureStill();
 					return true;
-				}
+				}*/
 			}
-			return false;
+			return true;
 		}
 	};
 
@@ -459,6 +522,8 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 	private static class MyGlobal
 	{
 		public static boolean isTrue;
+		public static boolean isPhotoSaved = false;
+		public static boolean isJustCaptured = false;
 		public static Bitmap MyBitmapImage;
 		public static Bitmap OutputImage;
 		public static boolean firstFrame = true;
@@ -699,10 +764,25 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 			public void handleCaptureStill() {
 				if (DEBUG) Log.v(TAG_THREAD, "handleCaptureStill:");
 				final MainActivity parent = mWeakParent.get();
+				/*new AlertDialog.Builder(parent)
+						.setTitle("Capture Still")
+						.setMessage("1")
+						.setCancelable(false)
+						.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.cancel();
+							}
+						}).create().show();*/
 				if (parent == null) return;
-				mSoundPool.play(mSoundId, 0.2f, 0.2f, 0, 0, 1.0f);	// play shutter sound
-				final Bitmap bitmap = mWeakCameraView.get().captureStillImage();
-				MyGlobal.MyBitmapImage = bitmap;
+				//mSoundPool.play(mSoundId, 0.2f, 0.2f, 0, 0, 1.0f);	// play shutter sound
+				if (MyGlobal.isPhotoSaved == false) {
+					final Bitmap bitmap = mWeakCameraView.get().captureStillImage();
+					MyGlobal.MyBitmapImage = bitmap;
+					MyGlobal.isPhotoSaved = true;
+					MyGlobal.isJustCaptured = false;
+				}
+				/*
 				try {
 					// get buffered output stream for saving a captured still image as a file on external storage.
 					// the file name is came from current time.
@@ -721,7 +801,7 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					}
 				} catch (final FileNotFoundException e) {
 				} catch (final IOException e) {
-				}
+				}*/
 			}
 
 			public void handleStartRecording() {
@@ -818,7 +898,7 @@ public final class MainActivity extends Activity implements CameraDialog.CameraD
 					msgBundle.putByteArray("frame", frame.array());
 					Message msg = new Message();
 					msg.setData(msgBundle);
-					mWeakParent.get().myPreviewHandler.sendMessage(msg);
+					//mWeakParent.get().myPreviewHandler.sendMessage(msg);
 				}
 			};
 
