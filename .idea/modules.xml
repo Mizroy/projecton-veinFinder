@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/UVCCamera-master.iml" filepath="$PROJECT_DIR$/UVCCamera-master.iml" />
+      <module fileurl="file://$PROJECT_DIR$/libuvccamera/libuvccamera.iml" filepath="$PROJECT_DIR$/libuvccamera/libuvccamera.iml" />
+      <module fileurl="file://$PROJECT_DIR$/openCVLibrary300/openCVLibrary300.iml" filepath="$PROJECT_DIR$/openCVLibrary300/openCVLibrary300.iml" />
+      <module fileurl="file://$PROJECT_DIR$/usbCameraTest/usbCameraTest.iml" filepath="$PROJECT_DIR$/usbCameraTest/usbCameraTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/veinFinder/veinFinder.iml" filepath="$PROJECT_DIR$/veinFinder/veinFinder.iml" />
+    </modules>
+  </component>
+</project>
